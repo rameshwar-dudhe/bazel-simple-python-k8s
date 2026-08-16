@@ -387,6 +387,7 @@
             <tr><td>Smoke</td><td class="mono">scripts/smoke.sh 1.4.0</td><td><span class="tag pass">3/3 assertions</span></td></tr>
             <tr><td>CI config</td><td class="mono">circleci config validate</td><td><span class="tag pass">config is valid</span></td></tr>
             <tr><td>Full CI job</td><td class="mono">scripts/ci-build.sh</td><td><span class="tag pass">exit 0</span> incl. lock-drift + graph guard</td></tr>
+            <tr><td>Teardown → redeploy</td><td class="mono">scripts/teardown.sh → … → smoke.sh</td><td><span class="tag pass">clean rebuild in ~2 min</span> identical image digests</td></tr>
           </tbody>
         </table>
       </div>
@@ -408,6 +409,13 @@ bazel run //tools/release -- --mode nightly --dry-run
 <span class="c"># a customer hotfix: one component, their registry, latest untouched</span>
 REGISTRY=customer-a.jfrog.io/platform scripts/release.sh hotfix api 1
 <span class="o">-- api -> ['1.4.0-hotfix.1']</span>
+
+<span class="c"># wipe the whole demo and bring it back (docs/08-deploy-from-scratch.md)</span>
+scripts/teardown.sh
+bazel test //... &amp;&amp; make image
+bazel run //tools/release -- --mode release --push --registry &lt;host-ip&gt;:5000/pyplatform
+scripts/deploy.sh 1.4.0 &amp;&amp; scripts/smoke.sh 1.4.0
+<span class="o">deployment "pyplatform-pyplatform-api" successfully rolled out — Ran 3 tests OK</span>
 
 <span class="c"># dependency lock discipline</span>
 bazel run  //third_party/python:requirements.update

@@ -45,9 +45,12 @@ make image                            # build both OCI images with Bazel
 bazel run //tools/release -- --mode nightly --dry-run   # what would ship?
 ```
 
-Full end-to-end (needs docker + a registry + a cluster):
+Full end-to-end (needs docker + a registry + a cluster) — the whole
+teardown-to-smoke procedure is written up in
+[`docs/08-deploy-from-scratch.md`](docs/08-deploy-from-scratch.md):
 
 ```bash
+scripts/teardown.sh                   # wipe any previous deploy (idempotent)
 scripts/release.sh release            # build, tag 1.4.0/1.4/latest, push
 scripts/deploy.sh 1.4.0               # helm upgrade --install + rollout wait
 scripts/smoke.sh 1.4.0                # smoke test the deployed version
@@ -77,3 +80,4 @@ On the machine this repo was built on, the whole chain executed for real:
 | [05-k8s-helm-smoke.md](docs/05-k8s-helm-smoke.md) | Helm chart, rollout, smoke validation, rollback |
 | [06-interview-qa.md](docs/06-interview-qa.md) | likely questions with answers grounded in this repo |
 | [07-runbook.md](docs/07-runbook.md) | every command, with the output you should expect |
+| [08-deploy-from-scratch.md](docs/08-deploy-from-scratch.md) | **teardown → rebuild → release → deploy → smoke**, verified end to end |

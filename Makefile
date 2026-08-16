@@ -1,6 +1,6 @@
 # Convenience wrappers. Everything here just calls bazel or a script in
 # scripts/ - there is no build logic hiding in this file.
-.PHONY: help build test lint image run-api run-worker release-dry release deploy smoke graph clean
+.PHONY: help build test lint image run-api run-worker release-dry release deploy smoke graph teardown clean
 
 TAG ?= 1.4.0
 NS  ?= pyplatform
@@ -41,6 +41,9 @@ smoke: ## post-deploy validation against the cluster
 
 graph: ## what rebuilds when the version file changes?
 	bazel query 'rdeps(//..., //release:version.txt)' --output=label
+
+teardown: ## remove the helm release, namespace, images and build outputs
+	scripts/teardown.sh
 
 clean:
 	bazel clean
