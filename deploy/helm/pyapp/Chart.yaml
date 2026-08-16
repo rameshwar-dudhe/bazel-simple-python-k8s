@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pyplatform
+description: API deployment + worker CronJob for the pyplatform monorepo
+type: application
+
+# Chart version: bumped when the templates change.
+version: 0.3.0
+# App version: the default image tag, kept in sync with release/version.txt by
+# the release pipeline (scripts/release.sh checks this).
+appVersion: "1.4.0"

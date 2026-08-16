@@ -193,7 +193,8 @@ def main(argv: list[str] | None = None) -> int:
         run([args.bazel, "build", image["target"]], args.dry_run)
         # 2. Load it into the local docker daemon as <repo>:local.
         run([args.bazel, "run", image["tarball"]], args.dry_run)
-        local_ref = f"{remote}:local"
+        local_prefix = manifest["registry"].get("local", manifest["registry"]["default"])
+        local_ref = "{}/{}:local".format(local_prefix.rstrip("/"), image["repository"])
 
         digest = ""
         if args.push:

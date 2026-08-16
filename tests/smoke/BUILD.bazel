@@ -1,0 +1,22 @@
+load("@pypi//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_test")
+
+# `manual` keeps it out of `bazel test //...` (which must stay hermetic);
+# the release pipeline runs it explicitly after `helm upgrade`.
+py_test(
+    name = "smoke_test",
+    size = "small",
+    srcs = ["smoke_test.py"],
+    env_inherit = [
+        "SMOKE_BASE_URL",
+        "EXPECTED_VERSION",
+        "SMOKE_TIMEOUT",
+        "SMOKE_RETRIES",
+    ],
+    tags = [
+        "external",  # never cache the result: the cluster is the input
+        "manual",
+        "requires-network",
+    ],
+    deps = [requirement("requests")],
+)

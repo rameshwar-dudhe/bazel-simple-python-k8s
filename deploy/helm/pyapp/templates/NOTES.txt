@@ -1,0 +1,12 @@
+{{ .Chart.Name }} {{ .Chart.Version }} deployed as release "{{ .Release.Name }}" in namespace {{ .Release.Namespace }}.
+
+Images:      {{ .Values.image.registry }}/{api,worker}:{{ .Values.image.tag }}
+Environment: {{ .Values.env.APP_ENV }}
+
+Smoke test this release:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "pyapp.fullname" . }}-{{ .Values.api.name }} --timeout=120s
+  SMOKE_BASE_URL=http://<node-ip>:{{ .Values.api.service.nodePort }} EXPECTED_VERSION={{ .Values.image.tag }} \
+    bazel test //tests/smoke:smoke_test --test_output=all
+
+Roll back:
+  helm -n {{ .Release.Namespace }} rollback {{ .Release.Name }}

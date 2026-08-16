@@ -1,0 +1,34 @@
+{{- if .Values.worker.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "pyapp.fullname" . }}-{{ .Values.worker.name }}
+  labels:
+    {{- include "pyapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ .Values.worker.name }}
+spec:
+  schedule: {{ .Values.worker.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "pyapp.labels" . | nindent 12 }}
+            app.kubernetes.io/component: {{ .Values.worker.name }}
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: {{ .Values.worker.name }}
+              # Second image from the same release - both come from the same
+              # manifest, so api and worker can never drift out of sync.
+              image: {{ include "pyapp.image" (dict "root" . "component" .Values.worker.name) }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--batch", "{{ .Values.worker.batchSize }}"]
+              env:
+                - name: APP_ENV
+                  value: {{ .Values.env.APP_ENV | quote }}
+{{- end }}

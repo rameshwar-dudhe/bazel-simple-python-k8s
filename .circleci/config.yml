@@ -1,0 +1,384 @@
+version: 2.1
+
+# =============================================================================
+# pyplatform CI/CD
+#
+# Four pipelines out of one config file:
+#   pr        every branch/PR  -> lint, build, test  (fast feedback, no push)
+#   main      merge to main    -> build, test, push :main-<sha>, deploy dev, smoke
+#   nightly   scheduled 02:00  -> full build from main, push nightly tags
+#   release   git tag v*       -> manifest-driven multi-image release + chart
+#   hotfix    manual trigger   -> single component, customer registry, approval
+#
+# Design rules used throughout:
+#   * every job body is a script in scripts/ - the config wires jobs together,
+#     it does not contain logic (reproducible locally, portable off CircleCI)
+#   * reusable `commands` instead of copy-pasted steps
+#   * Bazel remote cache is read-write on trusted branches, read-only on PRs
+#   * nothing is published from a PR
+# =============================================================================
+
+orbs:
+  # Reusable, versioned building blocks. gcp-cli gives us `gcloud` + auth for
+  # Google Artifact Registry without maintaining our own install steps.
+  gcp-cli: circleci/gcp-cli@3.3.1
+  slack: circleci/slack@5.1.1
+
+# -----------------------------------------------------------------------------
+# Pipeline parameters. Scheduled pipelines and API triggers set these, which is
+# how one config serves nightly / release / hotfix without duplicated files.
+# -----------------------------------------------------------------------------
+parameters:
+  run_nightly:
+    type: boolean
+    default: false
+  run_hotfix:
+    type: boolean
+    default: false
+  hotfix_component:
+    type: string
+    default: api
+  hotfix_number:
+    type: integer
+    default: 1
+  hotfix_registry:
+    type: string
+    default: ""
+
+# -----------------------------------------------------------------------------
+# Executors: one place to bump the toolchain image for every job.
+# -----------------------------------------------------------------------------
+executors:
+  bazel:
+    docker:
+      - image: cimg/base:2024.11
+    resource_class: large
+    environment:
+      # Keep the bazel output base on the (fast) workspace disk so the
+      # save_cache step can pick it up.
+      BAZEL_OUTPUT_BASE: /home/circleci/.cache/bazel
+  deployer:
+    docker:
+      - image: cimg/deploy:2024.11 # kubectl + helm + gcloud
+    resource_class: medium
+
+# -----------------------------------------------------------------------------
+# Reusable commands - the "orb-like" layer inside this repo.
+# -----------------------------------------------------------------------------
+commands:
+  setup_bazel:
+    description: Install bazelisk (which reads .bazelversion) and print the version.
+    steps:
+      - run:
+          name: install bazelisk
+          command: |
+            set -euo pipefail
+            curl -fsSL -o /tmp/bazelisk \
+              https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64
+            chmod +x /tmp/bazelisk
+            sudo mv /tmp/bazelisk /usr/local/bin/bazel
+            bazel --version
+
+  restore_bazel_cache:
+    description: >
+      Restore the Bazel repository + disk cache. The key is derived from the
+      files that actually invalidate it, so an unrelated source change still
+      gets a full cache hit.
+    steps:
+      - restore_cache:
+          keys:
+            - bazel-v3-{{ checksum "MODULE.bazel.lock" }}-{{ checksum "third_party/python/requirements_lock.txt" }}
+            # Partial-match fallbacks: a stale-but-warm cache beats a cold one.
+            - bazel-v3-{{ checksum "MODULE.bazel.lock" }}-
+            - bazel-v3-
+
+  save_bazel_cache:
+    steps:
+      - save_cache:
+          key: bazel-v3-{{ checksum "MODULE.bazel.lock" }}-{{ checksum "third_party/python/requirements_lock.txt" }}-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - ~/.cache/bazel-disk # --disk_cache from .bazelrc
+            - ~/.cache/bazelisk
+
+  auth_gar:
+    description: >
+      Authenticate to Google Artifact Registry using Workload Identity
+      Federation (OIDC) - no long-lived JSON key in CircleCI.
+    steps:
+      - gcp-cli/setup:
+          use_oidc: true
+      - run:
+          name: configure docker + crane for GAR
+          command: |
+            set -euo pipefail
+            gcloud auth configure-docker "${GAR_LOCATION}-docker.pkg.dev" --quiet
+            # crane reads the same docker config file.
+            crane auth login "${GAR_LOCATION}-docker.pkg.dev" \
+              --username oauth2accesstoken \
+              --password "$(gcloud auth print-access-token)"
+
+  install_crane:
+    steps:
+      - run:
+          name: install crane
+          command: |
+            set -euo pipefail
+            curl -fsSL "https://github.com/google/go-containerregistry/releases/download/v0.20.2/go-containerregistry_Linux_x86_64.tar.gz" \
+              | sudo tar -xz -C /usr/local/bin crane
+            crane version
+
+  notify_failure:
+    steps:
+      - slack/notify:
+          event: fail
+          channel: platform-ci
+          template: basic_fail_1
+
+# -----------------------------------------------------------------------------
+# Jobs
+# -----------------------------------------------------------------------------
+jobs:
+  lint:
+    executor: bazel
+    steps:
+      - checkout
+      - setup_bazel
+      - restore_bazel_cache
+      # Cheapest checks first: this job fails in <1 min on an obvious mistake.
+      - run: scripts/lint.sh
+      - notify_failure
+
+  build_and_test:
+    executor: bazel
+    # Bazel already parallelises inside one machine; the remote cache is what
+    # makes this job fast, not more containers. Split only if the test suite
+    # grows beyond what one executor can chew through.
+    parameters:
+      cache_mode:
+        type: string
+        default: remotecache_ro
+    steps:
+      - checkout
+      - setup_bazel
+      - restore_bazel_cache
+      - run:
+          name: build + test
+          command: |
+            set -euo pipefail
+            BAZEL_CONFIGS="--config=ci --config=<< parameters.cache_mode >>" \
+              scripts/ci-build.sh
+      - run:
+          name: collect test results
+          when: always
+          command: |
+            set -euo pipefail
+            mkdir -p /tmp/test-results
+            # Bazel writes a JUnit XML per test target; CircleCI's test
+            # insights then show flaky/slow tests over time.
+            find bazel-testlogs -name test.xml -exec bash -c \
+              'cp "$1" "/tmp/test-results/$(echo "$1" | tr / _)"' _ {} \;
+      - store_test_results:
+          path: /tmp/test-results
+      - store_artifacts:
+          path: /tmp/test-results
+      - save_bazel_cache
+      - notify_failure
+
+  # ---------------------------------------------------------------------------
+  # One job for every publish mode. The mode is a parameter, the logic lives in
+  # the release tool, and the list of images lives in release/manifest.yaml.
+  # ---------------------------------------------------------------------------
+  publish:
+    executor: bazel
+    parameters:
+      mode:
+        type: string # nightly | release | hotfix
+      component:
+        type: string
+        default: ""
+      hotfix_number:
+        type: integer
+        default: 0
+      registry:
+        type: string
+        default: ""
+    steps:
+      - checkout
+      - setup_bazel
+      - restore_bazel_cache
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - install_crane
+      - auth_gar
+      - run:
+          name: release (<< parameters.mode >>)
+          command: |
+            set -euo pipefail
+            export REGISTRY="<< parameters.registry >>"
+            export BAZEL_CONFIGS="--config=ci --config=remotecache"
+            scripts/release.sh "<< parameters.mode >>" \
+              "<< parameters.component >>" "<< parameters.hotfix_number >>"
+      - store_artifacts:
+          path: release-report.json
+      - persist_to_workspace:
+          # The deploy job reads the published tags from this report instead of
+          # recomputing them - one source of truth per pipeline run.
+          root: .
+          paths:
+            - release-report.json
+      - notify_failure
+
+  deploy_and_smoke:
+    executor: deployer
+    parameters:
+      environment:
+        type: string
+      namespace:
+        type: string
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - gcp-cli/setup:
+          use_oidc: true
+      - run:
+          name: kubeconfig
+          command: |
+            set -euo pipefail
+            gcloud container clusters get-credentials "$GKE_CLUSTER" \
+              --region "$GKE_REGION" --project "$GCP_PROJECT_ID"
+      - run:
+          name: helm upgrade
+          command: |
+            set -euo pipefail
+            # The immutable tag that this pipeline actually published.
+            TAG="$(jq -r '.images[0].tags[0]' release-report.json)"
+            APP_ENV="<< parameters.environment >>" \
+              REGISTRY="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/platform" \
+              scripts/deploy.sh "$TAG" "<< parameters.namespace >>"
+      - run:
+          name: smoke validation
+          command: |
+            set -euo pipefail
+            TAG="$(jq -r '.images[0].tags[0]' release-report.json)"
+            scripts/smoke.sh "$TAG" "<< parameters.namespace >>"
+      - run:
+          name: roll back on smoke failure
+          when: on_fail
+          command: |
+            set -euo pipefail
+            helm -n "<< parameters.namespace >>" rollback pyplatform || true
+            kubectl -n "<< parameters.namespace >>" get pods
+      - notify_failure
+
+# -----------------------------------------------------------------------------
+# Workflows
+# -----------------------------------------------------------------------------
+workflows:
+  # --- every PR / branch: fast, read-only, publishes nothing -----------------
+  pr:
+    when:
+      and:
+        - not: << pipeline.parameters.run_nightly >>
+        - not: << pipeline.parameters.run_hotfix >>
+        - not:
+            equal: [main, << pipeline.git.branch >>]
+    jobs:
+      - lint
+      - build_and_test:
+          # Read-only cache: a PR can consume the shared cache but never
+          # poison it for main.
+          cache_mode: remotecache_ro
+          requires: [lint]
+
+  # --- main: build once, deploy to dev, smoke it -----------------------------
+  main:
+    when:
+      and:
+        - not: << pipeline.parameters.run_nightly >>
+        - not: << pipeline.parameters.run_hotfix >>
+        - equal: [main, << pipeline.git.branch >>]
+    jobs:
+      - lint
+      - build_and_test:
+          cache_mode: remotecache # read-write: main populates the cache
+          requires: [lint]
+      - publish:
+          mode: nightly # date+sha tags; the same immutable-tag scheme
+          requires: [build_and_test]
+          context: [gcp-artifact-registry]
+      - deploy_and_smoke:
+          environment: dev
+          namespace: pyplatform-dev
+          requires: [publish]
+          context: [gke-dev]
+
+  # --- nightly: triggered by a CircleCI scheduled pipeline that sets
+  #     run_nightly=true (Project Settings -> Triggers). Scheduled *pipelines*
+  #     replace the deprecated `triggers:/schedule:` block and can carry
+  #     parameters, which is what lets us reuse the same jobs. ---------------
+  nightly:
+    when: << pipeline.parameters.run_nightly >>
+    jobs:
+      - build_and_test:
+          cache_mode: remotecache
+      - publish:
+          mode: nightly
+          requires: [build_and_test]
+          context: [gcp-artifact-registry]
+      - deploy_and_smoke:
+          environment: staging
+          namespace: pyplatform-staging
+          requires: [publish]
+          context: [gke-staging]
+
+  # --- release: cut on a git tag like v1.4.0 ---------------------------------
+  release:
+    jobs:
+      - build_and_test:
+          cache_mode: remotecache
+          filters: &release_filters
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v\d+\.\d+\.\d+$/
+      - publish:
+          mode: release
+          requires: [build_and_test]
+          context: [gcp-artifact-registry]
+          filters: *release_filters
+      - deploy_and_smoke:
+          environment: staging
+          namespace: pyplatform-staging
+          requires: [publish]
+          context: [gke-staging]
+          filters: *release_filters
+      # Production is never automatic: a human owns the blast radius.
+      - hold_for_production:
+          type: approval
+          requires: [deploy_and_smoke]
+          filters: *release_filters
+      - deploy_and_smoke:
+          name: deploy_production
+          environment: prod
+          namespace: pyplatform-prod
+          requires: [hold_for_production]
+          context: [gke-prod]
+          filters: *release_filters
+
+  # --- hotfix: API-triggered, one component, straight to a customer registry -
+  hotfix:
+    when: << pipeline.parameters.run_hotfix >>
+    jobs:
+      - build_and_test:
+          cache_mode: remotecache_ro
+      - hold_for_hotfix:
+          type: approval
+          requires: [build_and_test]
+      - publish:
+          mode: hotfix
+          component: << pipeline.parameters.hotfix_component >>
+          hotfix_number: << pipeline.parameters.hotfix_number >>
+          registry: << pipeline.parameters.hotfix_registry >>
+          requires: [hold_for_hotfix]
+          context: [customer-registries]

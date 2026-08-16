@@ -1,0 +1,47 @@
+# Defaults. Every environment overrides only what it needs:
+#   helm upgrade --install pyplatform deploy/helm/pyapp \
+#     --set image.registry=europe-west1-docker.pkg.dev/acme-prod/platform \
+#     --set image.tag=1.4.0 --set env.APP_ENV=prod
+
+image:
+  # Registry prefix. Must match what the release pipeline pushed to, and must
+  # be resolvable FROM THE CLUSTER NODES (not from your laptop).
+  registry: localhost:5000/pyplatform
+  # Overridden by the pipeline with the immutable tag it just published
+  # (e.g. 1.4.0 or nightly-20260816-abc1234). Never rely on `latest` in a
+  # deployment - you cannot roll back to a tag that moves.
+  tag: "1.4.0"
+  pullPolicy: IfNotPresent
+
+api:
+  enabled: true
+  name: api
+  replicaCount: 2
+  port: 8080
+  service:
+    type: NodePort
+    port: 80
+    # Fixed NodePort so the smoke test has a stable URL in this demo.
+    nodePort: 30081
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+worker:
+  enabled: true
+  name: worker
+  # The worker is a batch job, so it ships as a CronJob rather than a
+  # Deployment - same image pipeline, different workload type.
+  schedule: "*/15 * * * *"
+  batchSize: 5
+
+env:
+  APP_ENV: dev
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []

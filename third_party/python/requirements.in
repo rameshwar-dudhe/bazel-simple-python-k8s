@@ -3,7 +3,7 @@
 # Edit this file, then regenerate the fully-pinned + hashed lock with:
 #   bazel run //third_party/python:requirements.update
 # and commit requirements_lock.txt. CI verifies the lock is in sync with:
-#   bazel test //third_party/python:requirements_test
+#   bazel test //third_party/python:requirements.test
 #
 # Rules of the road in a large repo:
 #   * pin direct deps here, let the lock pin the transitive closure

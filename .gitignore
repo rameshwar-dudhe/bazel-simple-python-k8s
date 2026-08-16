@@ -1,0 +1,9 @@
+# Bazel symlinks + outputs
+/bazel-*
+# Local overrides of .bazelrc
+/.bazelrc.user
+# Release artefacts
+/dist/
+/release-report.json
+__pycache__/
+*.pyc

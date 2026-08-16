@@ -6,12 +6,18 @@
 # Nothing about the list of images is hard-coded in CI config.
 
 registry:
-  # Production would be a Google Artifact Registry repo, e.g.
-  #   europe-west1-docker.pkg.dev/acme-prod/platform
-  # or a JFrog Artifactory docker repo, e.g.
-  #   acme.jfrog.io/platform-docker-local
+  # Where a release is PUSHED. Production would be a Google Artifact Registry
+  # repo, e.g.  europe-west1-docker.pkg.dev/acme-prod/platform
+  # or a JFrog Artifactory docker repo, e.g. acme.jfrog.io/platform-docker-local
   # For the local demo we point at a registry running on localhost:5000.
+  # Override per run with:  --registry <prefix>   (that is how a hotfix is
+  # delivered straight into a customer's own registry).
   default: localhost:5000/pyplatform
+
+  # The tag `bazel run //...:image_tarball` loads into the local docker daemon.
+  # Kept separate from `default` so that changing the push destination never
+  # changes the build.
+  local: localhost:5000/pyplatform
 
 images:
   - name: api
