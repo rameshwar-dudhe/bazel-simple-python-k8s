@@ -1,0 +1,466 @@
+<title>Pyplatform Topic Map</title>
+<style>
+  :root {
+    --bg: #F3F5F3;
+    --surface: #FFFFFF;
+    --surface-2: #EAEDEA;
+    --ink: #16201D;
+    --muted: #5B6663;
+    --faint: #8A9490;
+    --rule: #D9DEDA;
+    --accent: #A8461A;
+    --accent-soft: #F2E2D8;
+    --ok: #2F6B47;
+    --warn: #8A6516;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121618;
+      --surface: #191F21;
+      --surface-2: #212A2C;
+      --ink: #E4EAE7;
+      --muted: #98A29E;
+      --faint: #6E7975;
+      --rule: #2A3437;
+      --accent: #E8873F;
+      --accent-soft: #33231A;
+      --ok: #6FBF8C;
+      --warn: #D9AE55;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121618;
+    --surface: #191F21;
+    --surface-2: #212A2C;
+    --ink: #E4EAE7;
+    --muted: #98A29E;
+    --faint: #6E7975;
+    --rule: #2A3437;
+    --accent: #E8873F;
+    --accent-soft: #33231A;
+    --ok: #6FBF8C;
+    --warn: #D9AE55;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+  }
+  @media (min-width: 940px) {
+    .page { grid-template-columns: 208px minmax(0, 1fr); gap: 48px; padding-inline: 32px; }
+  }
+
+  /* ---- masthead ---- */
+  header.top {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--rule);
+    padding: 56px 0 28px;
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(28px, 4.4vw, 42px);
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .lede { max-width: 66ch; color: var(--muted); margin: 0; font-size: 17px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- side nav ---- */
+  nav.side { display: none; }
+  @media (min-width: 940px) {
+    nav.side {
+      display: block;
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.9;
+    }
+    nav.side a { display: block; color: var(--muted); text-decoration: none; border-left: 2px solid var(--rule); padding-left: 12px; }
+    nav.side a:hover, nav.side a:focus-visible { color: var(--accent); border-left-color: var(--accent); }
+    nav.side .navhead { color: var(--faint); letter-spacing: .14em; text-transform: uppercase; font-size: 10.5px; margin: 22px 0 8px; padding-left: 14px; }
+    nav.side .navhead:first-child { margin-top: 0; }
+  }
+
+  main { min-width: 0; }
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+  h2 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 600;
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  h3 { font-size: 17px; margin: 0 0 8px; font-weight: 640; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; max-width: 70ch; }
+  a { color: var(--accent); }
+  code, .path {
+    font-family: var(--mono);
+    font-size: 0.875em;
+    background: var(--surface-2);
+    padding: 1.5px 5px;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+
+  /* ---- pipeline strip ---- */
+  .flow { overflow-x: auto; padding-bottom: 6px; }
+  .flow-inner { display: flex; align-items: stretch; gap: 0; min-width: 720px; }
+  .stage {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-right: 0;
+    padding: 14px 16px;
+  }
+  .stage:last-child { border-right: 1px solid var(--rule); }
+  .stage .n { font-family: var(--mono); font-size: 10.5px; color: var(--accent); letter-spacing: .12em; }
+  .stage .t { font-weight: 620; font-size: 14.5px; margin-top: 4px; }
+  .stage .d { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  /* ---- responsibility cards ---- */
+  .cards { display: grid; gap: 16px; }
+  @media (min-width: 700px) { .cards { grid-template-columns: 1fr 1fr; } }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 18px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card .jd {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    align-self: flex-start;
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+  .files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .files li { font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .files li b { color: var(--ink); font-weight: 600; }
+  .say { border-left: 2px solid var(--accent); padding-left: 12px; font-size: 14.5px; color: var(--ink); margin-top: auto; }
+  .say span { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 4px; }
+
+  /* ---- tables ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; background: var(--surface-2);
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.mono, td code { font-family: var(--mono); font-size: 12.5px; }
+  .tag { font-family: var(--mono); font-size: 11.5px; padding: 2px 6px; border-radius: 3px; background: var(--surface-2); color: var(--muted); }
+  .tag.pass { color: var(--ok); }
+
+  /* ---- commands ---- */
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0 0 16px;
+  }
+  pre .c { color: var(--faint); }
+  pre .o { color: var(--ok); }
+
+  /* ---- qa ---- */
+  details {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+  }
+  details[open] { background: var(--surface); }
+  summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+  summary::marker { color: var(--accent); }
+  details p { margin: 12px 0 2px; color: var(--muted); }
+  details p strong { color: var(--ink); }
+
+  .note {
+    border: 1px dashed var(--rule);
+    border-radius: 4px;
+    padding: 16px 18px;
+    background: var(--surface);
+  }
+  .note h3 { color: var(--warn); }
+  .note ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14.5px; }
+  .note li { margin-bottom: 6px; }
+
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  footer { grid-column: 1 / -1; border-top: 1px solid var(--rule); padding-top: 20px; color: var(--faint); font-family: var(--mono); font-size: 12px; }
+</style>
+
+<div class="page">
+  <header class="top">
+    <p class="eyebrow">Interview prep · Build / Release / Platform engineering</p>
+    <h1>Pyplatform Topic Map</h1>
+    <p class="lede">A small Python monorepo built to answer one JD, bullet by bullet: <strong>Bazel</strong> (bzlmod, hermetic toolchain, caching, RBE config), <strong>CircleCI</strong> (five workflows, reusable commands, nightly + release + hotfix), <strong>manifest-driven multi-image releases</strong> pushed with crane, <strong>Helm on Kubernetes</strong>, and <strong>smoke validation</strong>. Two services, one shared library, ~600 lines of Python. Every command below was executed for real, not just written.</p>
+  </header>
+
+  <nav class="side">
+    <div class="navhead">Overview</div>
+    <a href="#flow">The pipeline</a>
+    <a href="#layout">Repo layout</a>
+    <div class="navhead">JD bullets</div>
+    <a href="#r1">1 · CircleCI</a>
+    <a href="#r2">2 · Bazel</a>
+    <a href="#r4">4 · Release modes</a>
+    <a href="#r5">5 · Registries + crane</a>
+    <a href="#r6">6 · Smoke validation</a>
+    <div class="navhead">Prep</div>
+    <a href="#evidence">Verified runs</a>
+    <a href="#commands">Demo commands</a>
+    <a href="#qa">Q &amp; A</a>
+    <a href="#limits">Limitations</a>
+  </nav>
+
+  <main>
+    <section id="flow">
+      <h2>The pipeline, end to end</h2>
+      <div class="flow">
+        <div class="flow-inner">
+          <div class="stage"><div class="n">SOURCE</div><div class="t">version.txt</div><div class="d">genrule → version.py → libs → services</div></div>
+          <div class="stage"><div class="n">BUILD</div><div class="t">Bazel</div><div class="d">hermetic py3.11<br>pip lock, remote cache</div></div>
+          <div class="stage"><div class="n">PACKAGE</div><div class="t">OCI image</div><div class="d">py_image macro<br>base pinned by digest</div></div>
+          <div class="stage"><div class="n">PUBLISH</div><div class="t">crane</div><div class="d">manifest.yaml decides<br>what + which tags</div></div>
+          <div class="stage"><div class="n">DEPLOY</div><div class="t">Helm</div><div class="d">immutable tag<br>--wait + rollout status</div></div>
+          <div class="stage"><div class="n">VERIFY</div><div class="t">smoke</div><div class="d">/version == released tag<br>fail → helm rollback</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="layout">
+      <h2>Repo layout</h2>
+      <pre><span class="c">MODULE.bazel</span>              bzlmod: hermetic python 3.11, pip lock, OCI base by digest
+<span class="c">.bazelrc</span>                  configs: ci / remotecache / remotecache_ro / rbe
+<span class="c">.circleci/config.yml</span>      5 workflows: pr, main, nightly, release, hotfix
+<span class="c">libs/greeter/</span>             shared library — the shared node in the build graph
+<span class="c">libs/version/</span>             genrule codegen: release/version.txt → version.py
+<span class="c">services/api/</span>             HTTP service + unit tests + OCI image
+<span class="c">services/worker/</span>          batch CLI + unit tests + OCI image (the 2nd image)
+<span class="c">third_party/python/</span>       requirements.in → fully hashed requirements_lock.txt
+<span class="c">tools/bazel/py_image.bzl</span>  reusable macro: py_binary → image / tarball / push
+<span class="c">tools/release/release.py</span>  release tool: nightly | release | hotfix
+<span class="c">release/manifest.yaml</span>     THE source of truth for what gets released
+<span class="c">deploy/helm/pyapp/</span>        chart: api Deployment + worker CronJob
+<span class="c">tests/smoke/</span>              post-deploy validation (manual bazel target)
+<span class="c">scripts/</span>                  bash entry points that CI and humans both call</pre>
+    </section>
+
+    <section id="r1">
+      <h2>JD bullets → where they live</h2>
+      <div class="cards">
+
+        <div class="card">
+          <span class="jd">JD 1 + 3 · CircleCI</span>
+          <h3>Stable, fast, scalable pipelines</h3>
+          <ul class="files">
+            <li><b>.circleci/config.yml → commands:</b> 6 reusable commands (setup_bazel, restore/save_bazel_cache, auth_gar, install_crane, notify_failure)</li>
+            <li><b>orbs:</b> circleci/gcp-cli (OIDC), circleci/slack</li>
+            <li><b>workflows:</b> pr · main · nightly · release · hotfix, selected by pipeline parameters</li>
+            <li><b>scripts/*.sh:</b> every job body is a script</li>
+          </ul>
+          <div class="say"><span>Say this</span>Nothing is copy-pasted, the expensive work is cached — read-write on main, read-only on PRs so a PR can't poison it — and every job body is a script I can run locally, which is also what makes it portable off CircleCI.</div>
+        </div>
+
+        <div class="card" id="r2">
+          <span class="jd">JD 2 · Bazel ecosystem</span>
+          <h3>Graph, caching, RBE, troubleshooting</h3>
+          <ul class="files">
+            <li><b>MODULE.bazel + .lock:</b> bzlmod, hermetic CPython, base image by digest, lock committed</li>
+            <li><b>.bazelrc:</b> --config=rbe (executor, BES, jobs=100, platforms), remotecache / remotecache_ro</li>
+            <li><b>--incompatible_strict_action_env:</b> the "why does CI never cache" fix</li>
+            <li><b>libs/version:</b> codegen inside the graph, so a version bump has a visible blast radius</li>
+            <li><b>scripts/ci-build.sh:</b> a bazel query guard — no service may depend on //tools/…</li>
+          </ul>
+          <div class="say"><span>Say this</span>Python-only for size, but the mechanics are language-agnostic: adding Go is a bazel_dep plus a go_image macro next to py_image.bzl. The manifest, the CI config and the chart don't change — that separation is the design.</div>
+        </div>
+
+        <div class="card" id="r4">
+          <span class="jd">JD 4 · Release modes</span>
+          <h3>Manifest + version files drive everything</h3>
+          <ul class="files">
+            <li><b>release/manifest.yaml:</b> images, repos, versions, smoke flag, charts</li>
+            <li><b>release/version.txt:</b> one version, feeding both the build and the tags</li>
+            <li><b>tools/release/release.py:</b> nightly / release / hotfix, --only, --registry, --dry-run, JSON report</li>
+            <li><b>release_test.py:</b> the tag rules are unit tested — no registry needed</li>
+          </ul>
+          <div class="say"><span>Say this</span>CI doesn't know which services exist — adding one is a manifest PR, not a CI PR. Every mode publishes at least one immutable tag; floating tags like latest are only ever additional, so a rollback is always "pin the immutable tag".</div>
+        </div>
+
+        <div class="card" id="r5">
+          <span class="jd">JD 5 · Artifacts + registries</span>
+          <h3>GAR / JFrog, crane, hotfix delivery</h3>
+          <ul class="files">
+            <li><b>tools/bazel/py_image.bzl:</b> oci_image + oci_load + oci_push, reproducible layers</li>
+            <li><b>release.py → publish():</b> crane push / tag / digest, docker fallback</li>
+            <li><b>scripts/release.sh:</b> helm package + helm push (OCI chart) next to the images</li>
+            <li><b>auth_gar:</b> Workload Identity Federation — no long-lived JSON key</li>
+            <li><b>--registry override:</b> a hotfix goes straight into the customer's registry</li>
+          </ul>
+          <div class="say"><span>Say this</span>crane talks to the registry directly — no docker daemon in CI — and re-tagging is a metadata call instead of a layer upload. crane copy is how you promote between registries without ever pulling.</div>
+        </div>
+
+        <div class="card" id="r6">
+          <span class="jd">JD 6 · Build + smoke validation</span>
+          <h3>What gets checked, and when</h3>
+          <ul class="files">
+            <li><b>bazel test //…:</b> 4 hermetic tests, no docker or cluster</li>
+            <li><b>tests/smoke/smoke_test.py:</b> health · deployed version == released version · one real endpoint</li>
+            <li><b>tags = ["manual","external"]:</b> never runs (or caches) in the hermetic suite</li>
+            <li><b>deploy_and_smoke:</b> smoke after helm upgrade; <code>when: on_fail</code> → helm rollback</li>
+          </ul>
+          <div class="say"><span>Say this</span>The assertion that earns its keep is comparing /version with the tag we just published — a rollout can report success while the cluster still serves the old image.</div>
+        </div>
+
+        <div class="card">
+          <span class="jd">JD 7 + qualifications</span>
+          <h3>Rollout, Python, Bash, dependencies</h3>
+          <ul class="files">
+            <li><b>py_image.bzl:</b> platform team owns one macro — changing the base image for every service is a one-line diff</li>
+            <li><b>third_party/python:</b> requirements.in → hashed lock, one version repo-wide, CI test fails on drift</li>
+            <li><b>scripts/*.sh:</b> set -euo pipefail, ${VAR:?msg}, --dry-run on anything that mutates</li>
+            <li><b>docs/:</b> the rollout is documented, not tribal knowledge</li>
+          </ul>
+          <div class="say"><span>Say this</span>A version number never appears in a BUILD file — deps are written as requirement("pyyaml") and pinned once, in one lock, for the whole monorepo.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="evidence">
+      <h2>Verified runs, not claims</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Step</th><th>Command</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>Unit tests</td><td class="mono">bazel test //…</td><td><span class="tag pass">4/4 pass</span> hermetic</td></tr>
+            <tr><td>Image build</td><td class="mono">bazel run //services/api:image_tarball</td><td><span class="tag pass">container serves /version</span></td></tr>
+            <tr><td>Release</td><td class="mono">scripts/release.sh release</td><td><span class="tag pass">api + worker</span> tags 1.4.0 / 1.4 / latest, digests recorded</td></tr>
+            <tr><td>Deploy</td><td class="mono">scripts/deploy.sh 1.4.0</td><td><span class="tag pass">2/2 pods Ready</span> on k8s 1.36 + worker CronJob</td></tr>
+            <tr><td>Smoke</td><td class="mono">scripts/smoke.sh 1.4.0</td><td><span class="tag pass">3/3 assertions</span></td></tr>
+            <tr><td>CI config</td><td class="mono">circleci config validate</td><td><span class="tag pass">config is valid</span></td></tr>
+            <tr><td>Full CI job</td><td class="mono">scripts/ci-build.sh</td><td><span class="tag pass">exit 0</span> incl. lock-drift + graph guard</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="commands">
+      <h2>Commands worth demoing live</h2>
+      <pre><span class="c"># blast radius of a version bump — shows the graph, doesn't describe it</span>
+bazel query 'rdeps(//..., //release:version.txt)' --output=label
+
+<span class="c"># why does this edge exist / what actually ships in the image</span>
+bazel query 'somepath(//services/api, //libs/version)'
+bazel query 'deps(//services/api:image)' | wc -l
+
+<span class="c"># what would tonight's nightly publish? (no side effects)</span>
+bazel run //tools/release -- --mode nightly --dry-run
+<span class="o">-- api: localhost:5000/pyplatform/api -> ['nightly-20260816-8d4d860', 'nightly']</span>
+
+<span class="c"># a customer hotfix: one component, their registry, latest untouched</span>
+REGISTRY=customer-a.jfrog.io/platform scripts/release.sh hotfix api 1
+<span class="o">-- api -> ['1.4.0-hotfix.1']</span>
+
+<span class="c"># dependency lock discipline</span>
+bazel run  //third_party/python:requirements.update
+bazel test //third_party/python:requirements.test   <span class="c"># CI's drift guard</span></pre>
+    </section>
+
+    <section id="qa">
+      <h2>Questions you should expect</h2>
+
+      <details>
+        <summary>Our CI cache never hits. Where do you look?</summary>
+        <p>In order: is the action environment leaking (<code>--incompatible_strict_action_env</code>); are the toolchains hermetic or is a system python sneaking in; are outputs reproducible — timestamps in tars and image layers are the usual culprit, which is why the macro sets <code>portable_mtime</code>; diff two invocations with <code>--execution_log_compact_file</code>; and check PRs aren't writing junk into the shared cache (they're read-only here on purpose).</p>
+      </details>
+
+      <details>
+        <summary>Nightly vs release — how do you avoid two copies of the pipeline?</summary>
+        <p>Pipeline parameters. A scheduled pipeline sets <code>run_nightly=true</code>, which selects the nightly workflow and reuses the same build / publish / deploy jobs with different parameters. The only real difference is the release <strong>mode</strong>, which is a flag to the release tool.</p>
+      </details>
+
+      <details>
+        <summary><code>latest</code> — yes or no?</summary>
+        <p>Publish it, never deploy it. It's a convenience pointer for humans; deployments always reference an immutable tag or a digest, otherwise rollback is undefined.</p>
+      </details>
+
+      <details>
+        <summary>A build works locally and fails on RBE. First move?</summary>
+        <p><code>bazel aquery</code> the failing action and read its declared inputs. Nine times out of ten something is used but not declared, and the local sandbox was lenient about it.</p>
+      </details>
+
+      <details>
+        <summary>A customer needs a fix on 1.4.0 but main is on 1.6.</summary>
+        <p>Branch from the release tag, cherry-pick, run the hotfix pipeline for that one component with <code>--registry &lt;customer registry&gt;</code>. It publishes <code>1.4.0-hotfix.1</code>, never touches <code>latest</code>, and the JSON release report — with digests — goes on the support ticket.</p>
+      </details>
+
+      <details>
+        <summary>How would you make this pipeline faster?</summary>
+        <p>Measure first, then: fail cheap checks first, cache the expensive layer (Bazel remote cache), stop redoing work across jobs (<code>persist_to_workspace</code>), and only then add parallelism. I deliberately did <em>not</em> shard tests — Bazel already skips unchanged ones, so sharding mostly buys container startup cost. Knowing when not to shard is part of the answer.</p>
+      </details>
+    </section>
+
+    <section id="limits">
+      <h2>Say these before you're asked</h2>
+      <div class="note">
+        <h3>Honest limitations of the demo</h3>
+        <ul>
+          <li>Python only. Go and Rust would be added the same way, but they aren't here.</li>
+          <li>The RBE and remote-cache endpoints in <code>.bazelrc</code> are illustrative — the flags and the platform definition are real, the backends aren't provisioned.</li>
+          <li>Images use <code>python:3.11-slim</code>, not distroless, because the rules_python launcher starts with <code>#!/usr/bin/env python3</code>. Going distroless means changing the bootstrap strategy.</li>
+          <li>The demo registry is a local <code>registry:2</code>, and smoke reaches the cluster over a NodePort — in production that's an internal load balancer or Ingress.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>pyplatform · docs/01-topic-map.md holds the same map in the repo, with per-topic deep dives in docs/02 – 07.</footer>
+</div>
