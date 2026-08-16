@@ -1,0 +1,8 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+# Marker package so `import libs.<something>` works from every target.
+py_library(
+    name = "libs_pkg",
+    srcs = ["__init__.py"],
+    visibility = ["//visibility:public"],
+)

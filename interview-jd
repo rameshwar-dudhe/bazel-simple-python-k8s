@@ -1,0 +1,36 @@
+Key Responsibilities
+
+Keep CI/CD pipelines (CircleCI) stable, fast, and scalable - workflow optimization, configuration management, and reusable orbs/commands.
+Maintain the Bazel ecosystem (Go, Rust, Python), including RBE setup, caching, troubleshooting, and build-graph health.
+Maintain and improve our CircleCI setup, including workflow optimization and configuration management.
+CI release pipeline (nightly and release modes), including multi-image releases driven by manifest/version files.
+Build and publish artifacts (container images, Helm charts) to GAR / JFrog using tools like crane; manage hotfix delivery to customers.
+Develop, maintain and run build + smoke validation in the pipeline.
+Partner with engineering teams across the platform to roll out infrastructure changes and best practices.
+ 
+
+ 
+
+Required Qualifications
+
+4+ years in DevOps / Build / Release / Platform engineering.
+Bazel experience in a multi-language monorepo (Go, Rust, and/or Python).
+ 
+
+Hands-on strong CI/CD experience (CircleCI preferred; Jenkins/GitLab CI acceptable), including pipeline-as-code and workflow optimization.
+Experience with Google Artifact Registry (GAR) and/or JFrog Artifact Management
+Strong scripting/programming skills (Python and Bash).
+Experience with Linux/Unix systems and command-line interfaces
+Experience in managing dependencies in large scale projects
+Problem-solving, ownership mindset and cross-functional collaboration.
+ 
+
+ 
+
+Preferred Qualifications
+
+Familiarity with containerization (e.g., Docker)
+Experience with other CI/CD tools (e.g., Jenkins, GitLab CI/CD, etc.)
+Experience with Python Package Management.
+Google Cloud Platform (GAR, gcp CLI).
+Knowledge of software development best practices and coding standards.

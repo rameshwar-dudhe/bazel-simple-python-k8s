@@ -1,0 +1,15 @@
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+
+# Generates + verifies the lock file.
+#   bazel run  //third_party/python:requirements.update   -> rewrite the lock
+#   bazel test //third_party/python:requirements_test      -> fail CI if the
+#       lock does not match requirements.in (the classic "someone edited the
+#       lock by hand" guard)
+compile_pip_requirements(
+    name = "requirements",
+    src = "requirements.in",
+    requirements_txt = "requirements_lock.txt",
+    tags = ["manual"],
+)
+
+exports_files(["requirements_lock.txt"])

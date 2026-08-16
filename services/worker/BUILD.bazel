@@ -1,0 +1,36 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+load("//tools/bazel:py_image.bzl", "py_service_image")
+
+py_library(
+    name = "lib",
+    srcs = [
+        "__init__.py",
+        "worker.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs/greeter",
+        "//services:services_pkg",
+    ],
+)
+
+py_binary(
+    name = "worker",
+    srcs = ["worker.py"],
+    main = "worker.py",
+    visibility = ["//visibility:public"],
+    deps = [":lib"],
+)
+
+py_test(
+    name = "worker_test",
+    size = "small",
+    srcs = ["worker_test.py"],
+    deps = [":lib"],
+)
+
+py_service_image(
+    name = "image",
+    binary = ":worker",
+    repository = "localhost:5000/pyplatform/worker",
+)

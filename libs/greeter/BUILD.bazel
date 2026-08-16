@@ -1,0 +1,21 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+py_library(
+    name = "greeter",
+    srcs = [
+        "__init__.py",
+        "greeter.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs:libs_pkg",
+        "//libs/version",
+    ],
+)
+
+py_test(
+    name = "greeter_test",
+    size = "small",
+    srcs = ["greeter_test.py"],
+    deps = [":greeter"],
+)

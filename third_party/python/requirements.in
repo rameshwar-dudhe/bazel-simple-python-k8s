@@ -1,0 +1,15 @@
+# Direct third-party Python dependencies of the monorepo.
+#
+# Edit this file, then regenerate the fully-pinned + hashed lock with:
+#   bazel run //third_party/python:requirements.update
+# and commit requirements_lock.txt. CI verifies the lock is in sync with:
+#   bazel test //third_party/python:requirements_test
+#
+# Rules of the road in a large repo:
+#   * pin direct deps here, let the lock pin the transitive closure
+#   * one lock for the whole monorepo => one version of a library everywhere,
+#     so two services can never disagree about e.g. the requests version
+#   * hashes in the lock make installs tamper-evident (supply-chain)
+
+pyyaml==6.0.2
+requests==2.32.3

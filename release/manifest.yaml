@@ -1,0 +1,40 @@
+# Release manifest: the one file that drives a multi-image release.
+#
+# Adding a new service to the release = add an entry here. The release tool
+# (//tools/release) builds every listed image with Bazel, tags it according to
+# the release mode (nightly / release / hotfix) and pushes it to the registry.
+# Nothing about the list of images is hard-coded in CI config.
+
+registry:
+  # Production would be a Google Artifact Registry repo, e.g.
+  #   europe-west1-docker.pkg.dev/acme-prod/platform
+  # or a JFrog Artifactory docker repo, e.g.
+  #   acme.jfrog.io/platform-docker-local
+  # For the local demo we point at a registry running on localhost:5000.
+  default: localhost:5000/pyplatform
+
+images:
+  - name: api
+    # Bazel target that produces the OCI image for this component.
+    target: //services/api:image
+    # Local tarball target used to load the image into the docker daemon.
+    tarball: //services/api:image_tarball
+    # Path under the registry prefix above.
+    repository: api
+    # Component version. Usually equals the monorepo version, but a single
+    # component can be pinned/bumped independently for a hotfix.
+    version: 1.4.0
+    smoke: true
+
+  - name: worker
+    target: //services/worker:image
+    tarball: //services/worker:image_tarball
+    repository: worker
+    version: 1.4.0
+    smoke: false
+
+# Helm charts published alongside the images (OCI charts in the same registry).
+charts:
+  - name: pyplatform
+    path: deploy/helm/pyapp
+    version: 0.3.0

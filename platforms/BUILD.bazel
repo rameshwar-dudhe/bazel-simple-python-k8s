@@ -1,0 +1,15 @@
+# Execution platform used by --config=rbe. The container image the RBE workers
+# run is part of the platform definition, so changing the worker image
+# correctly invalidates every remotely executed action.
+platform(
+    name = "rbe_linux_amd64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    exec_properties = {
+        "OSFamily": "Linux",
+        "container-image": "docker://gcr.io/acme-ci/rbe-ubuntu22-04@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    },
+    visibility = ["//visibility:public"],
+)

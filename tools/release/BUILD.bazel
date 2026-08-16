@@ -1,0 +1,32 @@
+load("@pypi//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+
+py_library(
+    name = "lib",
+    srcs = [
+        "__init__.py",
+        "release.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools:tools_pkg",
+        # Third-party dep, resolved from //third_party/python:requirements_lock.txt.
+        requirement("pyyaml"),
+    ],
+)
+
+py_binary(
+    name = "release",
+    srcs = ["release.py"],
+    data = ["//release:manifest.yaml"],
+    main = "release.py",
+    visibility = ["//visibility:public"],
+    deps = [":lib"],
+)
+
+py_test(
+    name = "release_test",
+    size = "small",
+    srcs = ["release_test.py"],
+    deps = [":lib"],
+)

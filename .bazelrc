@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------------------
+# Defaults for every bazel invocation (laptop + CI).
+# ---------------------------------------------------------------------------
+common --enable_platform_specific_config
+
+# Keep the action environment small and explicit so cache keys stay stable
+# across machines (a leaking $PATH/$USER is the classic "why is nothing
+# cached in CI" bug).
+build --incompatible_strict_action_env
+
+# Readable failures.
+build --verbose_failures
+test --test_output=errors
+test --test_summary=terse
+
+# Local disk cache: second build on the same machine is mostly cache hits.
+build --disk_cache=~/.cache/bazel-disk
+
+# ---------------------------------------------------------------------------
+# --config=ci : what CircleCI adds on top of the defaults.
+# ---------------------------------------------------------------------------
+build:ci --announce_rc
+build:ci --color=yes
+build:ci --show_timestamps
+build:ci --keep_going
+build:ci --curses=no
+# Tag every invocation so a build can be traced back to the pipeline that ran
+# it (shows up in the remote cache/BES UI).
+build:ci --build_metadata=ROLE=CI
+test:ci --test_output=errors
+test:ci --flaky_test_attempts=2
+
+# ---------------------------------------------------------------------------
+# --config=remotecache : shared HTTP cache (GCS bucket / BuildBuddy / JFrog).
+# Read-write for main-branch + nightly jobs, read-only for PRs so a poisoned
+# PR build can never pollute the shared cache.
+# ---------------------------------------------------------------------------
+build:remotecache --remote_cache=https://storage.googleapis.com/acme-bazel-cache
+build:remotecache --google_default_credentials
+build:remotecache --remote_upload_local_results=true
+build:remotecache --remote_timeout=60s
+# Do not fail the build if the cache backend is down.
+build:remotecache --remote_local_fallback
+
+build:remotecache_ro --config=remotecache
+build:remotecache_ro --remote_upload_local_results=false
+
+# ---------------------------------------------------------------------------
+# --config=rbe : Remote Build Execution. Actions run on the RBE cluster
+# instead of the CircleCI container, so a 2-vCPU executor can fan out to
+# hundreds of parallel actions.
+# ---------------------------------------------------------------------------
+build:rbe --remote_executor=grpcs://remote.buildbuddy.io
+build:rbe --remote_cache=grpcs://remote.buildbuddy.io
+build:rbe --bes_backend=grpcs://remote.buildbuddy.io
+build:rbe --bes_results_url=https://app.buildbuddy.io/invocation/
+build:rbe --remote_timeout=10m
+build:rbe --jobs=100
+build:rbe --remote_download_toplevel
+# RBE workers are linux/amd64 containers; declaring the platform explicitly
+# keeps cache keys identical between mac laptops and linux CI.
+build:rbe --host_platform=//platforms:rbe_linux_amd64
+build:rbe --platforms=//platforms:rbe_linux_amd64
+
+# Local secrets / per-developer overrides (not committed).
+try-import %workspace%/.bazelrc.user

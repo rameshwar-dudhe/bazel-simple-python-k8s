@@ -1,0 +1,7 @@
+# The single source of truth for "what version is this monorepo at".
+# Both the build graph (//libs/version) and the release tooling
+# (//tools/release) read this one file.
+exports_files([
+    "version.txt",
+    "manifest.yaml",
+])

@@ -1,0 +1,38 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+load("//tools/bazel:py_image.bzl", "py_service_image")
+
+py_library(
+    name = "app",
+    srcs = [
+        "__init__.py",
+        "app.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs/greeter",
+        "//services:services_pkg",
+    ],
+)
+
+py_binary(
+    name = "api",
+    srcs = ["app.py"],
+    main = "app.py",
+    visibility = ["//visibility:public"],
+    deps = [":app"],
+)
+
+py_test(
+    name = "app_test",
+    size = "small",
+    srcs = ["app_test.py"],
+    deps = [":app"],
+)
+
+# Container image + `docker load`-able tarball + push target.
+# See //tools/bazel:py_image.bzl - the same macro is reused by the worker.
+py_service_image(
+    name = "image",
+    binary = ":api",
+    repository = "localhost:5000/pyplatform/api",
+)

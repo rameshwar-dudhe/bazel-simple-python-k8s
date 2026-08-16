@@ -1,0 +1,66 @@
+"""Bzlmod module definition for the pyplatform monorepo.
+
+Everything external the build needs is declared here (no legacy WORKSPACE file).
+Bazel resolves these from the Bazel Central Registry (bcr.bazel.build) and
+records the exact resolution in MODULE.bazel.lock, which IS committed so CI
+builds the same graph as a laptop.
+"""
+
+module(
+    name = "pyplatform",
+    version = "0.1.0",
+)
+
+bazel_dep(name = "rules_python", version = "2.3.1")
+bazel_dep(name = "rules_oci", version = "2.3.0")
+bazel_dep(name = "rules_pkg", version = "1.3.0")
+
+PYTHON_VERSION = "3.11"
+
+# Every python package in this repo ships a real, checked-in __init__.py.
+# Turning off Bazel's implicit __init__.py creation keeps what runs under
+# `bazel test` identical to what runs under a plain `python -m`.
+rules_python_config = use_extension("@rules_python//python/extensions:config.bzl", "config")
+rules_python_config.explicit_init_py(default = True)
+
+# ---------------------------------------------------------------------------
+# Hermetic Python toolchain: Bazel downloads its own CPython 3.11 so the build
+# does not depend on whatever python3 happens to be on the machine/CI image.
+# ---------------------------------------------------------------------------
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = PYTHON_VERSION,
+)
+
+# ---------------------------------------------------------------------------
+# Third-party PyPI dependencies, resolved from a fully pinned + hashed lock
+# file. Adding a dep = edit requirements.in, re-run the compile target, commit
+# the lock. Nothing is resolved at build time.
+# ---------------------------------------------------------------------------
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = PYTHON_VERSION,
+    requirements_lock = "//third_party/python:requirements_lock.txt",
+)
+use_repo(pip, "pypi")
+
+# ---------------------------------------------------------------------------
+# Container base image, pinned BY DIGEST so an upstream retag can never change
+# what we ship. Bump it deliberately, in a PR, like any other dependency.
+#
+# python:3.11-slim (not distroless) because the py_binary launcher rules_python
+# generates starts with `#!/usr/bin/env python3`; distroless has neither
+# /usr/bin/env nor a shell. The app code and its wheels still come from the
+# hermetic Bazel runfiles tree - only the interpreter comes from the base.
+# ---------------------------------------------------------------------------
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "python_base",
+    digest = "sha256:a630a63cdb314e2d138a2fca3e375e319e8568346ffafac5b980f888630ac4f1",
+    image = "index.docker.io/library/python",
+    platforms = ["linux/amd64"],
+    tag = "3.11-slim",  # documentation only; the digest above is what is used
+)
+use_repo(oci, "python_base", "python_base_linux_amd64")
