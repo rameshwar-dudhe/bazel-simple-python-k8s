@@ -33,7 +33,7 @@ release/version.txt       THE source of truth for the version
 deploy/helm/pyapp/        Helm chart: api Deployment + worker CronJob
 tests/smoke/              post-deploy smoke validation (manual bazel target)
 scripts/                  bash entry points that CI and humans both call
-docs/                     the interview prep material
+docs/                     the interview prep material.
 ```
 
 ## Quickstart
